@@ -1,0 +1,13 @@
+{
+  "collected_weathers": [
+    "unknown",
+    "sunny",
+    "rainy",
+    "cloudy"
+  ],
+  "level": 7,
+  "exp": 115,
+  "feed_count": 56,
+  "interact_count": 174,
+  "last_saved": "2026-03-13T13:58:36.984792"
+}
