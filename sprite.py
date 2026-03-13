@@ -343,6 +343,9 @@ class Sprite:
                     self.exp = data.get('exp', 0)
                     self.feed_count = data.get('feed_count', 0)
                     self.interact_count = data.get('interact_count', 0)
+                    self.hunger = data.get('hunger', 5)
+                    self.mood = data.get('mood', 5)
+                    self.energy = data.get('energy', 5)
             except Exception as e:
                 print(f"加载状态失败: {e}")
 
@@ -354,6 +357,9 @@ class Sprite:
             'exp': self.exp,
             'feed_count': self.feed_count,
             'interact_count': self.interact_count,
+            'hunger': self.hunger,
+            'mood': self.mood,
+            'energy': self.energy,
             'last_saved': datetime.now().isoformat(),
         }
         try:
@@ -373,15 +379,16 @@ class Sprite:
             self.current_element = self.WEATHER_ELEMENTS.get(
                 new_type, UnknownSprite
             )()
+
+            # 首次收集奖励
+            if new_type not in self.collected_weathers:
+                self.add_exp(20)
+
             self.collected_weathers.add(new_type)
 
             # 新天气 bonus
             self.mood = min(100, self.mood + 10)
             self.energy = min(100, self.energy + 5)
-
-            # 首次收集奖励
-            if new_type not in self.collected_weathers:
-                self.add_exp(20)
 
         # 更新数据
         self.temperature = weather_data.get('temperature', 20)

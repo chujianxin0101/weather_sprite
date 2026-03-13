@@ -5,6 +5,7 @@
 """
 
 import json
+import threading
 from pathlib import Path
 
 
@@ -22,6 +23,9 @@ class Config:
     def __init__(self, config_file='config.json'):
         self.config_file = Path(config_file)
         self._data = {}
+        self._pending_save = False
+        self._save_delay_ms = 500
+        self._save_timer = None
         self.load()
 
     def load(self):
@@ -39,11 +43,16 @@ class Config:
 
     def save(self):
         """保存配置"""
+        self._pending_save = False
         try:
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(self._data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             print(f"保存配置失败: {e}")
+
+    def _delayed_save(self):
+        """延迟保存配置"""
+        self.save()
 
     def get(self, key, default=None):
         """获取配置项"""
@@ -52,7 +61,11 @@ class Config:
     def set(self, key, value):
         """设置配置项"""
         self._data[key] = value
-        self.save()
+        self._pending_save = True
+        if self._save_timer is not None:
+            self._save_timer.cancel()
+        self._save_timer = threading.Timer(self._save_delay_ms / 1000.0, self._delayed_save)
+        self._save_timer.start()
 
     def get_all(self):
         """获取所有配置"""

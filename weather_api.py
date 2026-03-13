@@ -98,12 +98,41 @@ class WeatherManager:
         self.session.headers.update({
             'User-Agent': 'WeatherSprite/1.0'
         })
+        # 天气数据缓存
+        self._weather_cache = None
+        self._cache_time = 0
+        self._cache_duration = 600  # 10分钟缓存
+        # 城市坐标缓存文件
+        self._coords_cache_file = Path('city_coords.json')
+        self._coords_cache = self._load_coords_cache()
+
+    def _load_coords_cache(self):
+        """加载城市坐标缓存"""
+        if self._coords_cache_file.exists():
+            try:
+                with open(self._coords_cache_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+
+    def _save_coords_cache(self):
+        """保存城市坐标缓存到文件"""
+        try:
+            with open(self._coords_cache_file, 'w', encoding='utf-8') as f:
+                json.dump(self._coords_cache, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"保存城市坐标缓存失败: {e}")
 
     def get_city_coords(self, city_name):
         """获取城市坐标"""
         # 先查内置数据库
         if city_name in self.CITY_COORDS:
             return self.CITY_COORDS[city_name]
+
+        # 再查本地缓存文件
+        if city_name in self._coords_cache:
+            return self._coords_cache[city_name]
 
         # 否则用地理编码API查询
         try:
@@ -119,11 +148,15 @@ class WeatherManager:
 
             if 'results' in data and data['results']:
                 result = data['results'][0]
-                return {
+                coords = {
                     'lat': result['latitude'],
                     'lon': result['longitude'],
                     'name': result.get('name', city_name)
                 }
+                # 缓存到本地文件
+                self._coords_cache[city_name] = coords
+                self._save_coords_cache()
+                return coords
         except Exception as e:
             print(f"获取城市坐标失败: {e}")
 
@@ -132,6 +165,13 @@ class WeatherManager:
 
     def get_current_weather(self):
         """获取当前天气"""
+        import time
+
+        # 检查缓存是否有效
+        if (self._weather_cache is not None and
+            time.time() - self._cache_time < self._cache_duration):
+            return self._weather_cache
+
         city = self.config.get('city', '北京')
 
         try:
@@ -160,7 +200,8 @@ class WeatherManager:
                     weather_code, ('unknown', '未知')
                 )
 
-                return {
+                # 更新缓存
+                self._weather_cache = {
                     'condition': condition,
                     'description': description,
                     'temperature': temperature,
@@ -168,6 +209,9 @@ class WeatherManager:
                     'humidity': current.get('relative_humidity_2m', 0),
                     'city': city
                 }
+                self._cache_time = time.time()
+
+                return self._weather_cache
 
         except Exception as e:
             print(f"获取天气失败: {e}")
